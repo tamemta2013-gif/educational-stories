@@ -231,6 +231,15 @@ select{font:inherit;color:var(--ink);background:#fff;border:2px solid var(--line
 .valcard p{margin:6px 0 0;font-size:20px}
 @media (max-width:640px){.txt{font-size:22px}.cv{font-size:36px}.co button{font-size:24px;min-width:90px}.shelf{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
 @media (prefers-reduced-motion:reduce){.bob,.tw,.drift,.flipR,.flipL{animation:none}}
+
+/* عجلة وغياب وأعضاء الشجرة */
+.pill.abs{opacity:.4;text-decoration:line-through;background:#ffe3e6}
+.whl{max-width:560px;margin:0 auto;text-align:center}
+.wsvg{width:100%;display:block;overflow:visible;filter:drop-shadow(0 10px 14px rgba(60,30,120,.28))}
+.wres{min-height:130px;display:grid;place-items:center;font-size:44px;font-weight:800;border-radius:24px;background:linear-gradient(135deg,#f1ecff,#e6f7f5);margin:12px 0;padding:10px}
+.wres .ph{color:#a9a6c6;font-size:32px}
+.wres.win{background:linear-gradient(135deg,#fff3c4,#ffd9c9);animation:pop .6s}
+.gmem{width:100%;min-height:44px;font-size:15px;line-height:1.5;text-align:center;padding:6px 8px;border-radius:12px;margin:4px 0;resize:vertical;border:2px solid var(--line);background:rgba(255,255,255,.85)}
 </style>
 </head>
 <body>
@@ -255,6 +264,7 @@ var TABS=[
  {id:'stories',name:'بوابة القصص',icon:'📖',color:'#e0559b',desc:'مكتبة قصص مغامرات مصوّرة ببطلتين من فصلك، ترتبط بمفاهيم الرياضيات وتحمل قيمة هادفة.'},
  {id:'minute',name:'الدقيقة الواحدة',icon:'⏱️',color:'#ff6b5b',desc:'مؤقّت كبير للتفكير أو الإجابة أو الكتابة خلال وقت محدد.'},
  {id:'random',name:'الاختيار العشوائي',icon:'🎯',color:'#7c5cff',desc:'اختيار طالب بالحظ مع خيار عدم تكرار الاسم.'},
+ {id:'wheel',name:'العجلة الدوارة',icon:'🎡',color:'#ec4899',desc:'عجلة ملوّنة بأسماء الحاضرين تدور وتتوقف عند طالب، بدون تكرار ومع شطب الغائبين.'},
  {id:'coop',name:'التعلم التعاوني',icon:'🤝',color:'#19a7a1',desc:'توزيع الطلاب عشوائيًا على مجموعات مع أدوار.'},
  {id:'train',name:'القطار السريع',icon:'🚂',color:'#f59e0b',desc:'قطار يدور على السكة ويتوقف عند الطالب المختار.'},
  {id:'tree',name:'الشجرة المثمرة',icon:'🌳',color:'#4caf6a',desc:'شجرة لكل مجموعة تُزهر ثمرة مع كل إجابة صحيحة.'},
@@ -265,10 +275,10 @@ var TABS=[
 var canSave=true;
 function newClass(i){return {name:CLASS_NAMES[i],students:[],used:[],trainUsed:[],noRepeat:true,treeCount:6,
  trees:Array.from({length:10},function(_,k){return {name:'المجموعة '+(k+1),fruits:[]}}),
- coopN:4,coopRoles:true,coopGroups:null,minute:{q:'',dur:60},gender:i<2?'g':'b',grade:[3,1,3,3][i],storyPair:null,read:{},avatars:{},points:{},sortPts:false}}
+ coopN:4,coopRoles:true,coopGroups:null,minute:{q:'',dur:60},gender:i<2?'g':'b',absent:[],grade:[3,1,3,3][i],storyPair:null,read:{},avatars:{},points:{},sortPts:false}}
 function load(){
  try{var r=JSON.parse(localStorage.getItem(KEY));
-  if(r&&r.classes&&r.classes.length===4){r.classes=r.classes.map(function(c,i){return Object.assign(newClass(i),c)});return r}}catch(e){}
+  if(r&&r.classes&&r.classes.length===4){r.classes=r.classes.map(function(c,i){var m=Object.assign(newClass(i),c);(m.trainUsed||[]).forEach(function(n){if(m.used.indexOf(n)<0)m.used.push(n)});m.trainUsed=[];return m});return r}}catch(e){}
  return {sound:true,classes:[0,1,2,3].map(newClass)};
 }
 var S=load();
@@ -280,6 +290,7 @@ var view={page:'home',tab:'minute'};
 var cleanup=null;
 function runCleanup(){if(cleanup){try{cleanup()}catch(e){}cleanup=null}}
 var cur=function(){return S.classes[view.page]};
+function pres(c){var ab=c.absent||[];return c.students.filter(function(n){return ab.indexOf(n)<0})}
 
 /* logo */
 function logoSVG(sz){return '<svg viewBox="0 0 100 100" width="'+sz+'" height="'+sz+'" aria-hidden="true"><defs><linearGradient id="lg'+sz+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#19a7a1"/></linearGradient></defs><rect x="4" y="4" width="92" height="92" rx="28" fill="url(#lg'+sz+')"/><path d="M50 44 C40 37 27 37 19 41 V73 C27 69 40 69 50 76 C60 69 73 69 81 73 V41 C73 37 60 37 50 44 Z" fill="#fff"/><path d="M50 44 V76" stroke="#7c5cff" stroke-width="3" fill="none"/><path d="M50 12 L54 22 L65 24 L56 31 L58 42 L50 36 L42 42 L44 31 L35 24 L46 22 Z" fill="#ffd34d" transform="translate(20 2) scale(.6)"/></svg>'}
@@ -385,17 +396,17 @@ function renderHome(){
 /* class page */
 function renderClass(){
  var c=cur(),color=CLASS_COLORS[view.page];
- $('#main').innerHTML='<section class="classhead" style="--c:'+color+'"><div><h1>'+esc(c.name)+' <button id="rn" aria-label="تعديل الاسم">✏️</button></h1><p>'+(c.gender==='b'?'👦 فصل بنين':'👧 فصل بنات')+' · '+c.students.length+(c.gender==='b'?' طالب':' طالبة')+'</p></div><button id="stu">👥 أسماء الطلاب</button></section>'+
+ $('#main').innerHTML='<section class="classhead" style="--c:'+color+'"><div><h1>'+esc(c.name)+' <button id="rn" aria-label="تعديل الاسم">✏️</button></h1><p>'+(c.gender==='b'?'👦 فصل بنين':'👧 فصل بنات')+' · '+c.students.length+(c.gender==='b'?' طالب':' طالبة')+'</p></div><div class="row"><button id="stu">👥 أسماء الطلاب</button><button id="abs">🚫 الغائبون'+((c.absent||[]).length?' ('+c.absent.length+')':'')+'</button></div></section>'+
  '<nav class="tabs">'+TABS.map(function(t){return '<button class="tab '+(view.tab===t.id?'on':'')+'" data-t="'+t.id+'" style="--c:'+t.color+'">'+t.icon+' '+t.name+'</button>'}).join('')+'</nav><section class="stage" id="stage"></section>';
  $('#rn').onclick=function(){askText('اسم الفصل',c.name,function(n){c.name=n;save();render()})};
- $('#stu').onclick=openStudents;
+ $('#stu').onclick=openStudents;$('#abs').onclick=openAbsent;
  Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(b){b.onclick=function(){view.tab=b.dataset.t;runCleanup();Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(x){x.classList.toggle('on',x===b)});renderTab()}});
  renderTab();
 }
 function renderTab(){
  runCleanup();
  var st=$('#stage'),c=cur();
- ({minute:tabMinute,random:tabRandom,coop:tabCoop,train:tabTrain,tree:tabTree,noise:tabNoise,points:tabPoints,stories:tabStories})[view.tab](st,c);
+ ({minute:tabMinute,random:tabRandom,coop:tabCoop,train:tabTrain,tree:tabTree,noise:tabNoise,points:tabPoints,stories:tabStories,wheel:tabWheel})[view.tab](st,c);
 }
 function render(){runCleanup();renderTop();if(view.page==='home')renderHome();else renderClass();window.scrollTo(0,0)}
 
@@ -404,11 +415,12 @@ function needStudents(st){
  $('#addst').onclick=openStudents;
 }
 function choosePool(c,key,nr){
- var pool=c.students.filter(function(n){return c[key].indexOf(n)<0});
- if(!nr)return c.students.slice();
- if(!pool.length){c[key]=[];pool=c.students.slice()}
+ var P=pres(c),pool=P.filter(function(n){return c.used.indexOf(n)<0});
+ if(!nr)return P.slice();
+ if(!pool.length){c.used=c.used.filter(function(n){return P.indexOf(n)<0});pool=P.slice()}
  return pool;
 }
+function noPresent(st){st.innerHTML='<div class="empty"><div class="big">🚫</div><h3>لا يوجد حاضرون</h3><p class="muted">كل الأسماء مشطوبة. عدّلي قائمة الغائبين.</p><button id="addab">🚫 الغائبون</button></div>';$('#addab').onclick=openAbsent}
 
 /* students modal */
 function openStudents(){
@@ -425,11 +437,26 @@ function openStudents(){
   var seen={},list=[];
   $('#stl',ov).value.split('\n').forEach(function(l){l=l.trim();if(l&&!seen[l]){seen[l]=1;list.push(l)}});
   var g=$('#gd',ov).value;if(g!==c.gender){c.gender=g;c.avatars={}}c.grade=+$('#gdr',ov).value===1?1:3;c.storyPair=null;
-  c.students=list;
+  c.students=list;c.absent=(c.absent||[]).filter(function(n){return list.indexOf(n)>=0});
   c.used=c.used.filter(function(n){return list.indexOf(n)>=0});
   c.trainUsed=c.trainUsed.filter(function(n){return list.indexOf(n)>=0});
   c.coopGroups=null;ensureAvatars(c);save();close();render();
  };
+}
+
+/* الغائبون */
+function openAbsent(){
+ var c=cur(),ov=document.createElement('div');ov.className='overlay';c.absent=c.absent||[];ensureAvatars(c);var ch=false;
+ function html(){
+  if(!c.students.length)return '<div class="modal"><h2>🚫 الغائبون</h2><p class="muted">أضيفي أسماء الطلاب أولًا.</p><div class="row end"><button id="abd">إغلاق</button></div></div>';
+  return '<div class="modal"><h2>🚫 الغائبون — '+esc(c.name)+'</h2><p class="muted">اضغطي على اسم الغائب لشطبه، فلا يظهر في الاختيار العشوائي ولا القطار ولا العجلة ولا المجموعات ولا القصص.</p><div class="pills" id="abl">'+
+  c.students.map(function(n,i){var a=c.absent.indexOf(n)>=0;return '<button class="chip'+(a?' on':'')+'" data-i="'+i+'"'+(a?' style="text-decoration:line-through"':'')+'>'+av(c,n,'sm')+' '+esc(n)+'</button>'}).join('')+
+  '</div><p class="muted">الغائبون: <b>'+c.absent.length+'</b> · الحاضرون: <b>'+(c.students.length-c.absent.length)+'</b></p><div class="row end"><button id="abd">تم</button><button id="abc" class="soft">الجميع حاضرون</button></div></div>';
+ }
+ function close(){ov.remove();if(ch){c.coopGroups=null;c.storyPair=null;save();render()}}
+ function paint(){ov.innerHTML=html();var d=ov.querySelector('#abd');if(d)d.onclick=close;var a=ov.querySelector('#abc');if(a)a.onclick=function(){c.absent=[];ch=true;save();paint()};
+  Array.prototype.forEach.call(ov.querySelectorAll('#abl .chip'),function(b){b.onclick=function(){var n=c.students[+b.dataset.i],k=c.absent.indexOf(n);if(k>=0)c.absent.splice(k,1);else c.absent.push(n);ch=true;save();paint()}})}
+ document.body.appendChild(ov);ov.onclick=function(e){if(e.target===ov)close()};paint();
 }
 
 /* ---------- الدقيقة الواحدة ---------- */
@@ -465,6 +492,7 @@ function tabMinute(st,c){
 /* ---------- الاختيار العشوائي ---------- */
 function tabRandom(st,c){
  if(!c.students.length)return needStudents(st);
+ if(!pres(c).length)return noPresent(st);
  var busy=false,timers=[];
  st.innerHTML='<div class="bigname" id="bn"><span class="ph">من سيجيب؟</span></div>'+
  '<div class="row center"><button id="pick" class="xl" style="--c:#7c5cff">🎯 اختر طالبًا</button><label class="chk"><input type="checkbox" id="nr" '+(c.noRepeat!==false?'checked':'')+'> بدون تكرار</label><button id="rr" class="soft">↺ تصفير</button></div>'+
@@ -472,8 +500,8 @@ function tabRandom(st,c){
  ensureAvatars(c);
  var bn=$('#bn',st),pick=$('#pick',st),nr=$('#nr',st),setAw=mountAward($('#awh',st),c);
  function pills(){
-  $('#pl',st).innerHTML=c.students.map(function(n){return '<span class="pill '+(nr.checked&&c.used.indexOf(n)>=0?'used':'')+'">'+av(c,n,'sm')+' '+esc(n)+'</span>'}).join('');
-  $('#left',st).textContent=nr.checked?'المتبقي: '+c.students.filter(function(n){return c.used.indexOf(n)<0}).length+' من '+c.students.length:'عدد الطلاب: '+c.students.length;
+  $('#pl',st).innerHTML=c.students.map(function(n){return '<span class="pill '+((c.absent||[]).indexOf(n)>=0?'abs':nr.checked&&c.used.indexOf(n)>=0?'used':'')+'">'+av(c,n,'sm')+' '+esc(n)+'</span>'}).join('');
+  $('#left',st).textContent=nr.checked?'المتبقي: '+pres(c).filter(function(n){return c.used.indexOf(n)<0}).length+' من '+pres(c).length:'الحاضرون: '+pres(c).length;
  }
  pick.onclick=function(){
   if(busy)return;busy=true;pick.disabled=true;bn.classList.remove('win');
@@ -484,7 +512,7 @@ function tabRandom(st,c){
     if(nr.checked&&c.used.indexOf(final)<0)c.used.push(final);
     save();chime();busy=false;pick.disabled=false;pills();return;
    }
-   bn.innerHTML='<span>'+esc(rnd(c.students))+'</span>';tone(500+k*20,.05,0,'triangle',.08);k++;
+   bn.innerHTML='<span>'+esc(rnd(pres(c)))+'</span>';tone(500+k*20,.05,0,'triangle',.08);k++;
    timers.push(setTimeout(step,50+k*k*0.45));
   })();
  };
@@ -497,8 +525,9 @@ function tabRandom(st,c){
 /* ---------- التعلم التعاوني ---------- */
 function tabCoop(st,c){
  if(!c.students.length)return needStudents(st);
+ if(!pres(c).length)return noPresent(st);
  ensureAvatars(c);
- var maxN=Math.max(1,Math.min(10,c.students.length));
+ var PL=pres(c),maxN=Math.max(1,Math.min(10,PL.length));
  c.coopN=Math.min(Math.max(1,c.coopN||4),maxN);
  st.innerHTML='<div class="coopbar"><div class="row"><b>عدد المجموعات</b>'+stepper(c.coopN)+'</div><label class="chk"><input type="checkbox" id="rl" '+(c.coopRoles?'checked':'')+'> أدوار للأعضاء</label><button id="mk" style="--c:#19a7a1">🎲 وزّع الطلاب</button></div><div class="groups" id="gr"></div>';
  function draw(){
@@ -514,7 +543,7 @@ function tabCoop(st,c){
  $('#rl',st).onchange=function(e){c.coopRoles=e.target.checked;save();draw()};
  $('#mk',st).onclick=function(){
   var groups=Array.from({length:c.coopN},function(){return []});
-  shuffle(c.students).forEach(function(n,i){groups[i%c.coopN].push(n)});
+  shuffle(PL).forEach(function(n,i){groups[i%c.coopN].push(n)});
   c.coopGroups=groups;save();draw();tone(600,.12);tone(800,.15,.12);
  };
  draw();
@@ -524,12 +553,13 @@ function tabCoop(st,c){
 var trainHead=0;
 function tabTrain(st,c){
  if(!c.students.length)return needStudents(st);
+ if(!pres(c).length)return noPresent(st);
  var PATH='M250,110 H550 A140,140 0 0 1 550,390 H250 A140,140 0 0 1 250,110 Z',GAP=72;
  var WC=['#19a7a1','#f59e0b','#7c5cff','#4caf6a'];
  function wheels(xs,y){return xs.map(function(x){return '<circle cx="'+x+'" cy="'+y+'" r="7" fill="#2b2a4c"/><circle cx="'+x+'" cy="'+y+'" r="2.5" fill="#cbd5e1"/>'}).join('')}
  function loco(){return '<rect x="-34" y="-15" width="68" height="30" rx="8" fill="#e5484d"/><rect x="-34" y="-28" width="26" height="16" rx="4" fill="#b92d33"/><rect x="-29" y="-25" width="16" height="9" rx="2" fill="#bfe9ff"/><rect x="14" y="-27" width="11" height="13" rx="2" fill="#2b2a4c"/><circle cx="34" cy="0" r="6" fill="#ffd34d"/>'+wheels([-20,0,20],15)}
  function wagon(i){return '<rect x="-30" y="-15" width="60" height="30" rx="7" fill="'+WC[i%4]+'"/><rect x="-22" y="-8" width="14" height="12" rx="3" fill="#fff" opacity=".85"/><rect x="2" y="-8" width="14" height="12" rx="3" fill="#fff" opacity=".85"/>'+wheels([-16,16],15)}
- var n=c.students.length,cars='';
+ var PL=pres(c),n=PL.length,cars='';
  for(var j=0;j<5;j++)cars+='<g class="car">'+(j===0?loco():wagon(j-1))+'</g>';
  st.innerHTML='<div class="trainbox"><svg viewBox="0 0 800 500" id="sv"><rect width="800" height="500" rx="28" fill="#e6f5dd"/><path d="'+PATH+'" fill="#d2ebc3"/>'+
  '<path id="trk" d="'+PATH+'" fill="none" stroke="#a16207" stroke-width="34" stroke-dasharray="5 11"/><path d="'+PATH+'" fill="none" stroke="#64748b" stroke-width="20"/><path d="'+PATH+'" fill="none" stroke="#e9dcc3" stroke-width="13"/>'+
@@ -548,12 +578,12 @@ function tabTrain(st,c){
    g.setAttribute('transform','translate('+p.x.toFixed(1)+' '+p.y.toFixed(1)+') rotate('+(a*180/Math.PI).toFixed(1)+')'+(Math.cos(a)<0?' scale(1 -1)':''));
   });
  }
- function left(){var nr=$('#nr',st).checked;$('#left',st).textContent=nr?'المتبقي: '+c.students.filter(function(x){return c.trainUsed.indexOf(x)<0}).length+' من '+n:'عدد الطلاب: '+n}
+ function left(){var nr=$('#nr',st).checked;$('#left',st).textContent=nr?'المتبقي: '+PL.filter(function(x){return c.used.indexOf(x)<0}).length+' من '+n:'الحاضرون: '+n}
  function hl(idx){Array.prototype.forEach.call(stEls,function(e,i){var on=i===idx;e.setAttribute('r',on?15:8);e.setAttribute('fill',on?'#e5484d':'#fff')})}
  var ease=function(p){return p<.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2};
  $('#go',st).onclick=function(){
   if(busy)return;busy=true;this.disabled=true;var my=++token;
-  var nr=$('#nr',st).checked,pool=choosePool(c,'trainUsed',nr),name=rnd(pool),idx=c.students.indexOf(name);
+  var nr=$('#nr',st).checked,pool=choosePool(c,'trainUsed',nr),name=rnd(pool),idx=PL.indexOf(name);
   var target=idx/n*L,curp=((trainHead%L)+L)%L,delta=target-curp;if(delta<=0.5)delta+=L;
   var total=delta+L*(2+Math.floor(Math.random()*2)),dur=6500+Math.random()*1500,h0=trainHead,t0=performance.now(),tk=$('#tk',st),btn=this;
   hl(-1);tk.classList.remove('win');tk.innerHTML='🚂 القطار في الطريق…';tone(300,.15,0,'sawtooth',.08);tone(300,.15,.3,'sawtooth',.08);
@@ -562,12 +592,12 @@ function tabTrain(st,c){
    var p=Math.min(1,(t-t0)/dur);trainHead=h0+total*ease(p);place();
    if(p<1){raf=requestAnimationFrame(frame);return}
    trainHead=h0+total;place();hl(idx);
-   if(nr&&c.trainUsed.indexOf(name)<0)c.trainUsed.push(name);save();left();
+   if(nr&&c.used.indexOf(name)<0)c.used.push(name);save();left();
    tk.classList.add('win');tk.innerHTML='🎫 محطة الوصول<b>'+av(c,name,'sm')+' '+esc(name)+'</b>';setAw(name);chime();busy=false;btn.disabled=false;
   })(t0);
  };
  $('#nr',st).onchange=function(e){c.noRepeat=e.target.checked;save();left()};
- $('#rr',st).onclick=function(){c.trainUsed=[];save();left();hl(-1);$('#tk',st).classList.remove('win');$('#tk',st).innerHTML='🎫 اضغط «انطلق»'};
+ $('#rr',st).onclick=function(){c.used=[];save();left();hl(-1);$('#tk',st).classList.remove('win');$('#tk',st).innerHTML='🎫 اضغط «انطلق»'};
  cleanup=function(){token++;cancelAnimationFrame(raf)};
  place();left();
 }
@@ -582,11 +612,11 @@ function fruitsSVG(t,popLast){
 }
 function treeCard(c,i){
  var t=c.trees[i];
- return '<div class="tree" data-i="'+i+'" style="--g:'+PAL[i%PAL.length]+'"><input class="gname" value="'+esc(t.name)+'" aria-label="اسم المجموعة"><svg viewBox="0 0 200 215" class="tsvg">'+TREE_BASE+'<g class="fr">'+fruitsSVG(t,false)+'</g></svg><div class="tcount"><b>'+t.fruits.length+'</b> ثمرة</div><div class="tbtn"><button class="add">＋ ثمرة</button><button class="rem soft" aria-label="حذف ثمرة">−</button></div></div>';
+ return '<div class="tree" data-i="'+i+'" style="--g:'+PAL[i%PAL.length]+'"><input class="gname" value="'+esc(t.name)+'" aria-label="اسم المجموعة"><textarea class="gmem" rows="2" placeholder="أسماء أعضاء المجموعة…" aria-label="أعضاء المجموعة">'+esc(t.members||'')+'</textarea><svg viewBox="0 0 200 215" class="tsvg">'+TREE_BASE+'<g class="fr">'+fruitsSVG(t,false)+'</g></svg><div class="tcount"><b>'+t.fruits.length+'</b> ثمرة</div><div class="tbtn"><button class="add">＋ ثمرة</button><button class="rem soft" aria-label="حذف ثمرة">−</button></div></div>';
 }
 function tabTree(st,c){
  var n=Math.min(10,Math.max(2,c.treeCount||6));c.treeCount=n;
- st.innerHTML='<div class="treebar"><div class="row"><b>عدد المجموعات</b>'+stepper(n)+'</div><button id="clr" class="soft">🧺 إفراغ كل الأشجار</button></div><div class="trees" id="tg">'+Array.from({length:n},function(_,i){return treeCard(c,i)}).join('')+'</div>';
+ st.innerHTML='<div class="treebar"><div class="row"><b>عدد المجموعات</b>'+stepper(n)+'</div><button id="imp" class="soft">📥 أسماء من التعلم التعاوني</button><button id="clr" class="soft">🧺 إفراغ كل الأشجار</button></div><div class="trees" id="tg">'+Array.from({length:n},function(_,i){return treeCard(c,i)}).join('')+'</div>';
  function upd(i,pop){
   var card=$('.tree[data-i="'+i+'"]',st),t=c.trees[i];
   $('.fr',card).innerHTML=fruitsSVG(t,pop);$('.tcount b',card).textContent=t.fruits.length;
@@ -606,8 +636,52 @@ function tabTree(st,c){
    if(t.fruits.length){t.fruits.pop();save();upd(i,false)}
   }
  };
- tg.oninput=function(e){if(e.target.classList.contains('gname')){var i=+e.target.closest('.tree').dataset.i;c.trees[i].name=e.target.value;save()}};
+ tg.oninput=function(e){var cd=e.target.closest('.tree');if(!cd)return;var i=+cd.dataset.i;if(e.target.classList.contains('gname'))c.trees[i].name=e.target.value;else if(e.target.classList.contains('gmem'))c.trees[i].members=e.target.value;save()};
  $('#clr',st).onclick=function(){askYes('إفراغ ثمار جميع الأشجار؟',function(){c.trees.forEach(function(t){t.fruits=[]});save();tabTree(st,c)})};
+ $('#imp',st).onclick=function(){if(!c.coopGroups){toast('وزّعي الطلاب أولًا من «التعلم التعاوني»');return}c.coopGroups.forEach(function(g,i){if(c.trees[i])c.trees[i].members=g.join('، ')});c.treeCount=Math.max(2,Math.min(10,c.coopGroups.length));save();tabTree(st,c)};
+}
+
+/* ---------- العجلة الدوارة ---------- */
+var wheelRot=0;
+function tabWheel(st,c){
+ if(!c.students.length)return needStudents(st);
+ if(!pres(c).length)return noPresent(st);
+ ensureAvatars(c);
+ var busy=false,stale=false,timers=[],names=[],R=240;
+ st.innerHTML='<div class="whl"><svg viewBox="-260 -270 520 540" class="wsvg" role="img" aria-label="عجلة الأسماء"><g id="wr" style="transform-origin:0 0"></g><circle r="38" fill="#fff" stroke="#2b2a4c" stroke-width="6"/><text y="2" dy=".35em" text-anchor="middle" font-size="30">🎡</text><path d="M-24 -268 L24 -268 L0 -216Z" fill="#e24b5b" stroke="#fff" stroke-width="5" stroke-linejoin="round"/></svg>'+
+ '<div class="wres" id="wres"><span class="ph">أدِر العجلة!</span></div><div id="awh"></div>'+
+ '<div class="row center"><button id="spin" class="xl" style="--c:#ec4899">🎡 أدِر العجلة</button><label class="chk"><input type="checkbox" id="nr" '+(c.noRepeat!==false?'checked':'')+'> بدون تكرار</label><button id="rr" class="soft">↺ تصفير</button></div><p class="muted" id="left" style="text-align:center"></p></div>';
+ var wr=$('#wr',st),res=$('#wres',st),spin=$('#spin',st),nr=$('#nr',st),setAw=mountAward($('#awh',st),c);
+ function pt(r,a){var t=a*Math.PI/180;return (r*Math.sin(t)).toFixed(1)+' '+(-r*Math.cos(t)).toFixed(1)}
+ function draw(){
+  stale=false;names=choosePool(c,'used',nr.checked);var n=names.length,a=360/n,h='';
+  names.forEach(function(nm,i){
+   var col=PAL[i%PAL.length],m=(i+.5)*a,fs=Math.max(9,Math.min(24,936/n*.7));if(nm.length>9)fs=Math.max(8,fs*9/nm.length);
+   h+=(n===1?'<circle r="'+R+'" fill="'+col+'"/>':'<path d="M0 0 L'+pt(R,i*a)+' A'+R+' '+R+' 0 '+(a>180?1:0)+' 1 '+pt(R,(i+1)*a)+'Z" fill="'+col+'" stroke="#fff" stroke-width="3"/>');
+   h+='<text transform="rotate('+(m<=180?m-90:m+90).toFixed(1)+') translate('+(m<=180?150:-150)+' 0)" text-anchor="middle" dy=".35em" font-size="'+fs.toFixed(1)+'" font-weight="800" fill="#fff" stroke="rgba(0,0,0,.35)" stroke-width="3" paint-order="stroke">'+esc(nm)+'</text>';
+  });
+  wr.style.transition='none';wr.style.transform='rotate('+wheelRot+'deg)';wr.innerHTML=h;
+  $('#left',st).textContent=nr.checked?'المتبقي على العجلة: '+names.length+' من '+pres(c).length:'على العجلة: '+names.length+' اسم';
+ }
+ spin.onclick=function(){
+  if(busy)return;if(stale)draw();busy=true;spin.disabled=true;res.classList.remove('win');res.innerHTML='<span class="ph">…</span>';
+  var n=names.length,a=360/n,i=Math.floor(Math.random()*n),win=names[i],jit=(Math.random()-.5)*a*.7,tc=(i+.5)*a;
+  var need=(((jit-tc-wheelRot)%360)+360)%360,target=wheelRot+360*(5+Math.floor(Math.random()*3))+need,T=5.4;
+  void wr.getBoundingClientRect();
+  wr.style.transition='transform '+T+'s cubic-bezier(.12,.7,.1,1)';wr.style.transform='rotate('+target+'deg)';
+  var m=30;for(var k=1;k<=m;k++){(function(k){timers.push(setTimeout(function(){tone(700+(k%2)*120,.03,0,'square',.05)},T*1000*(1-Math.pow(1-k/m,1.8))*.96))})(k)}
+  timers.push(setTimeout(function(){
+   wheelRot=target%360;
+   if(nr.checked&&c.used.indexOf(win)<0)c.used.push(win);save();
+   res.innerHTML=av(c,win,'xl')+'<br>'+esc(win);res.classList.add('win');setAw(win);chime();
+   busy=false;spin.disabled=false;stale=nr.checked;
+   $('#left',st).textContent=nr.checked?'المتبقي على العجلة: '+pres(c).filter(function(x){return c.used.indexOf(x)<0}).length+' من '+pres(c).length:'على العجلة: '+names.length+' اسم';
+  },T*1000+150));
+ };
+ nr.onchange=function(){c.noRepeat=nr.checked;save();draw()};
+ $('#rr',st).onclick=function(){c.used=[];save();wheelRot=0;draw();res.classList.remove('win');res.innerHTML='<span class="ph">أدِر العجلة!</span>'};
+ cleanup=function(){timers.forEach(clearTimeout)};
+ draw();
 }
 
 /* ---------- ميزان الهدوء ---------- */
@@ -987,7 +1061,7 @@ STORIES[1].push({title:'نجوم السماء السحرية',lesson:'الأنم
 
 /* ---------- بوابة القصص: المكتبة والقارئ ---------- */
 function tabStories(st,c){
- if(c.students.length<2){
+ if(pres(c).length<2){
   st.innerHTML='<div class="empty"><div class="big">📖</div><h3>أضيفي طالبتين على الأقل</h3><p class="muted">تُكتب القصص بأسماء طالبتين من الفصل.</p><button id="addst">إضافة الأسماء</button></div>';
   $('#addst').onclick=openStudents;return;
  }
@@ -996,14 +1070,14 @@ function tabStories(st,c){
  function stop(){try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}speaking=false}
  cleanup=stop;
  function pair(){var p=c.storyPair;
-  if(!p||p.length<2||p[0]===p[1]||c.students.indexOf(p[0])<0||c.students.indexOf(p[1])<0){p=shuffle(c.students).slice(0,2);c.storyPair=p;save()}return p}
+  if(!p||p.length<2||p[0]===p[1]||pres(c).indexOf(p[0])<0||pres(c).indexOf(p[1])<0){p=shuffle(pres(c)).slice(0,2);c.storyPair=p;save()}return p}
  function listView(){
   stop();var p=pair();
-  var opt=function(sel){return c.students.map(function(n){return '<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(n)+'</option>'}).join('')};
+  var opt=function(sel){return pres(c).map(function(n){return '<option value="'+esc(n)+'"'+(n===sel?' selected':'')+'>'+esc(n)+'</option>'}).join('')};
   st.innerHTML='<div class="stbar"><span class="gbadge">📘 رياضيات '+(gr===1?'الصف الأول':'الصف الثالث')+' الابتدائي</span><div class="row"><span>بطلتا القصة</span><select id="pa" aria-label="البطلة الأولى">'+opt(p[0])+'</select><select id="pb" aria-label="البطلة الثانية">'+opt(p[1])+'</select><button id="rp2" class="soft">🎲 اختيار عشوائي</button></div></div>'+
   '<div class="shelf">'+list.map(function(s,i){
    return '<button class="book" data-i="'+i+'"><div class="cov">'+sceneSVG(s.p[0],p[0],p[1],c)+(c.read[gr+'-'+i]?'<span class="rb">✓ قُرئت</span>':'')+'</div><div class="cb"><span class="ct">'+esc(s.title)+'</span><span class="lchip">'+esc(s.lesson)+'</span><span class="vchip">القيمة: '+esc(s.val.n)+'</span></div></button>'}).join('')+'</div>';
-  function setP(a,b,w){if(a===b){var o=c.students.filter(function(n){return n!==a});if(w==='a')b=o[0];else a=o[0]}c.storyPair=[a,b];save();listView()}
+  function setP(a,b,w){if(a===b){var o=pres(c).filter(function(n){return n!==a});if(w==='a')b=o[0];else a=o[0]}c.storyPair=[a,b];save();listView()}
   $('#pa',st).onchange=function(e){setP(e.target.value,p[1],'a')};
   $('#pb',st).onchange=function(e){setP(p[0],e.target.value,'b')};
   $('#rp2',st).onclick=function(){c.storyPair=null;listView()};
