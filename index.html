@@ -240,6 +240,7 @@ select{font:inherit;color:var(--ink);background:#fff;border:2px solid var(--line
 .wres .ph{color:#a9a6c6;font-size:32px}
 .wres.win{background:linear-gradient(135deg,#fff3c4,#ffd9c9);animation:pop .6s}
 .gmem{width:100%;min-height:44px;font-size:15px;line-height:1.5;text-align:center;padding:6px 8px;border-radius:12px;margin:4px 0;resize:vertical;border:2px solid var(--line);background:rgba(255,255,255,.85)}
+.bk{margin:34px auto 0;max-width:620px;text-align:center;background:#fff;border:2px dashed var(--line);border-radius:22px;padding:14px 18px}
 </style>
 </head>
 <body>
@@ -388,8 +389,10 @@ function renderHome(){
  '<div class="classes">'+S.classes.map(function(c,i){return '<button class="classcard" data-i="'+i+'" style="--c:'+CLASS_COLORS[i]+'"><span class="n">'+(i+1)+'</span><b>'+esc(c.name)+'</b><small>'+(c.gender==='b'?'👦 بنين':'👧 بنات')+' · '+(c.students.length?c.students.length+(c.gender==='b'?' طالب':' طالبة'):'أضف الأسماء')+'</small></button>'}).join('')+'</div>'+
  '<h2 class="sub">الاستراتيجيات في كل فصل</h2><div class="strats">'+
  TABS.map(function(t){return '<div class="scard" style="--c:'+t.color+'"><span>'+t.icon+'</span><b>'+t.name+'</b><small>'+t.desc+'</small></div>'}).join('')+'</div>'+
+ '<div class="bk"><b>💾 نسخة احتياطية</b><p class="muted">انقلي أسماءك ونقاطك وثمارك بين سفاري واختصار الشاشة الرئيسية أو أي جهاز آخر.</p><div class="row center"><button id="bkc" class="soft">📋 نسخ بياناتي</button><button id="bkr" class="soft">📥 استعادة بيانات</button></div></div>'+
  '<footer class="foot">إعداد الدكتورة سارة شامان الحربي</footer>'+(canSave?'':'<p class="warn">⚠️ الحفظ التلقائي غير متاح في هذا المتصفح، لذلك ستضيع الأسماء والثمار عند إغلاق الصفحة.</p>');
  Array.prototype.forEach.call(document.querySelectorAll('.classcard'),function(b){b.onclick=function(){view.page=+b.dataset.i;render()}});
+ $('#bkc').onclick=function(){backupModal('export')};$('#bkr').onclick=function(){backupModal('import')};
  $('#lgedit').onclick=function(){askText('العبارة التي تظهر شعارًا',S.logo,function(w){S.logo=w.slice(0,70);save();render()})};
 }
 
@@ -442,6 +445,26 @@ function openStudents(){
   c.trainUsed=c.trainUsed.filter(function(n){return list.indexOf(n)>=0});
   c.coopGroups=null;ensureAvatars(c);save();close();render();
  };
+}
+
+/* نسخ احتياطي */
+function backupModal(mode){
+ var exp=mode==='export',ov=document.createElement('div');ov.className='overlay';
+ ov.innerHTML='<div class="modal"><h2>'+(exp?'📋 نسخ بياناتي':'📥 استعادة بيانات')+'</h2><p class="muted">'+(exp?'اضغطي «نسخ» ثم افتحي الموقع في الجهاز أو التطبيق الآخر واختاري «استعادة بيانات» والصقي النص.':'الصقي النص الذي نسختِه من «نسخ بياناتي». سيحلّ محلّ البيانات الحالية.')+'</p><textarea id="bkt" rows="8"'+(exp?' readonly':'')+'></textarea><p class="muted" id="bkm"></p><div class="row end"><button id="bkok">'+(exp?'نسخ':'استعادة')+'</button><button id="bkx" class="soft">إغلاق</button></div></div>';
+ document.body.appendChild(ov);
+ var ta=ov.querySelector('#bkt'),m=ov.querySelector('#bkm');
+ if(exp)ta.value=JSON.stringify(S);
+ ov.querySelector('#bkx').onclick=function(){ov.remove()};
+ function manual(){var ok=false;try{ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);ok=document.execCommand('copy')}catch(e){}m.textContent=ok?'✅ تم النسخ':'حدّدي النص كله وانسخيه يدويًا'}
+ ov.querySelector('#bkok').onclick=function(){
+  if(exp){
+   try{navigator.clipboard.writeText(ta.value).then(function(){m.textContent='✅ تم النسخ'},manual)}catch(e){manual()}
+  }else{
+   try{var d=JSON.parse(ta.value.trim());if(!d||!d.classes||d.classes.length!==4)throw 0;
+    S=d;S.classes=S.classes.map(function(c,i){return Object.assign(newClass(i),c)});if(!S.step)S.step=1;if(!S.logo)S.logo='نتعلّم لنفكّر، ونفكّر لنبدع';
+    save();ov.remove();view.page='home';render();toast('✅ تمت استعادة بياناتك')}
+   catch(e){m.textContent='النص غير صحيح. انسخيه كاملًا من «نسخ بياناتي».'}
+  }};
 }
 
 /* الغائبون */
